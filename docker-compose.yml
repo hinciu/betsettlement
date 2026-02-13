@@ -89,6 +89,22 @@ services:
     networks:
       - kafka-network
 
+  rocketmq-init:
+    image: apache/rocketmq:5.1.4
+    container_name: rocketmq-init
+    depends_on:
+      - rocketmq-broker
+    networks:
+      - kafka-network
+    command: >
+      sh -c "
+        sleep 10 &&
+        sh mqadmin updateTopic -t bet-settlements -c DefaultCluster -n rocketmq-namesrv:9876 -r 8 -w 8 &&
+        echo 'Topic bet-settlements created successfully' &&
+        tail -f /dev/null
+      "
+    restart: unless-stopped
+
 networks:
   kafka-network:
     driver: bridge

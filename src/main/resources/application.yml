@@ -42,8 +42,11 @@ rocketmq:
     send-message-timeout: 3000
     retry-times-when-send-failed: 2
     max-message-size: 4194304
-  topic:
-    bet-settlements: bet-settlements
+
+app:
+  rocketmq:
+    topic:
+      bet-settlements: bet-settlements
 
 server:
   port: 8084

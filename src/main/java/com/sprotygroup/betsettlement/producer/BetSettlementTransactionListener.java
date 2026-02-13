@@ -4,43 +4,42 @@ import com.sprotygroup.betsettlement.model.Bet;
 import com.sprotygroup.betsettlement.repository.BetRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.rocketmq.client.producer.LocalTransactionState;
-import org.apache.rocketmq.client.producer.TransactionListener;
-import org.apache.rocketmq.common.message.Message;
-import org.apache.rocketmq.common.message.MessageExt;
-import org.springframework.stereotype.Component;
+import org.apache.rocketmq.spring.annotation.RocketMQTransactionListener;
+import org.apache.rocketmq.spring.core.RocketMQLocalTransactionListener;
+import org.apache.rocketmq.spring.core.RocketMQLocalTransactionState;
+import org.springframework.messaging.Message;
 
-@Component
+@RocketMQTransactionListener
 @RequiredArgsConstructor
 @Slf4j
-public class BetSettlementTransactionListener implements TransactionListener {
+public class BetSettlementTransactionListener implements RocketMQLocalTransactionListener {
 
     private final BetRepository betRepository;
 
     @Override
-    public LocalTransactionState executeLocalTransaction(Message msg, Object arg) {
+    public RocketMQLocalTransactionState executeLocalTransaction(Message msg, Object arg) {
         try {
-            log.info("Executing local transaction for message: {}", msg.getKeys());
+            log.info("Executing local transaction for message: {}", msg.getHeaders().get("rocketmq_KEYS"));
 
             if (arg instanceof Runnable) {
                 ((Runnable) arg).run();
-                log.info("Local transaction committed successfully for bet: {}", msg.getKeys());
-                return LocalTransactionState.COMMIT_MESSAGE;
+                log.info("Local transaction committed successfully");
+                return RocketMQLocalTransactionState.COMMIT;
             }
 
-            log.warn("Invalid transaction argument type for bet: {}", msg.getKeys());
-            return LocalTransactionState.ROLLBACK_MESSAGE;
+            log.warn("Invalid transaction argument type");
+            return RocketMQLocalTransactionState.ROLLBACK;
 
         } catch (Exception e) {
-            log.error("Local transaction failed for bet {}: {}", msg.getKeys(), e.getMessage(), e);
-            return LocalTransactionState.ROLLBACK_MESSAGE;
+            log.error("Local transaction failed: {}", e.getMessage(), e);
+            return RocketMQLocalTransactionState.ROLLBACK;
         }
     }
 
     @Override
-    public LocalTransactionState checkLocalTransaction(MessageExt msg) {
+    public RocketMQLocalTransactionState checkLocalTransaction(Message msg) {
         try {
-            var betId = msg.getKeys();
+            String betId = (String) msg.getHeaders().get("rocketmq_KEYS");
             log.info("Checking local transaction status for bet: {}", betId);
 
             boolean isSettled = betRepository.findById(Long.parseLong(betId))
@@ -49,15 +48,15 @@ public class BetSettlementTransactionListener implements TransactionListener {
 
             if (isSettled) {
                 log.info("Bet {} is settled, committing message", betId);
-                return LocalTransactionState.COMMIT_MESSAGE;
+                return RocketMQLocalTransactionState.COMMIT;
             } else {
                 log.info("Bet {} is not settled, rolling back message", betId);
-                return LocalTransactionState.ROLLBACK_MESSAGE;
+                return RocketMQLocalTransactionState.ROLLBACK;
             }
 
         } catch (Exception e) {
-            log.error("Error checking transaction status for message {}: {}", msg.getKeys(), e.getMessage());
-            return LocalTransactionState.UNKNOW;
+            log.error("Error checking transaction status: {}", e.getMessage());
+            return RocketMQLocalTransactionState.UNKNOWN;
         }
     }
 }
