@@ -1,6 +1,6 @@
 package com.sprotygroup.betsettlement.service;
 
-import com.sprotygroup.betsettlement.model.EventOutcome;
+import com.sprotygroup.betsettlement.event.EventOutcome;
 import com.sprotygroup.betsettlement.model.EventOutcomeStatus;
 import com.sprotygroup.betsettlement.model.FailedEventOutcome;
 import com.sprotygroup.betsettlement.repository.FailedEventOutcomeRepository;
@@ -10,7 +10,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
 @Service
 @RequiredArgsConstructor

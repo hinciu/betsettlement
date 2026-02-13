@@ -1,6 +1,6 @@
 package com.sprotygroup.betsettlement.producer;
 
-import com.sprotygroup.betsettlement.model.EventOutcome;
+import com.sprotygroup.betsettlement.event.EventOutcome;
 import com.sprotygroup.betsettlement.service.FailedEventOutcomeService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

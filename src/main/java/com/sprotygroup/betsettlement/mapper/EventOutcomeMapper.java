@@ -1,7 +1,7 @@
 package com.sprotygroup.betsettlement.mapper;
 
 import com.sprotygroup.betsettlement.dto.EventOutcomeRequest;
-import com.sprotygroup.betsettlement.model.EventOutcome;
+import com.sprotygroup.betsettlement.event.EventOutcome;
 import org.mapstruct.Mapper;
 import org.mapstruct.MappingConstants;
 

@@ -2,7 +2,7 @@ package com.sprotygroup.betsettlement.controller;
 
 import com.sprotygroup.betsettlement.dto.EventOutcomeRequest;
 import com.sprotygroup.betsettlement.mapper.EventOutcomeMapper;
-import com.sprotygroup.betsettlement.model.EventOutcome;
+import com.sprotygroup.betsettlement.event.EventOutcome;
 import com.sprotygroup.betsettlement.producer.EventOutcomeProducer;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;

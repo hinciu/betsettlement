@@ -8,7 +8,7 @@ spring:
     password: ""
   jpa:
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: validate
   kafka:
     bootstrap-servers: localhost:9092
     template:
@@ -18,6 +18,12 @@ spring:
       auto-offset-reset: earliest
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring:
+          json:
+            trusted:
+              packages: "com.sprotygroup.betsettlement.model"
+
     producer:
       acks: all
       retries: 2147483647
@@ -28,3 +34,5 @@ spring:
     admin:
       properties:
         delivery.timeout.ms: 120000
+server:
+  port: 8084

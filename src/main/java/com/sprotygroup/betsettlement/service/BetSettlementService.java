@@ -1,0 +1,37 @@
+package com.sprotygroup.betsettlement.service;
+
+import com.sprotygroup.betsettlement.event.BetSettlement;
+import com.sprotygroup.betsettlement.mapper.BetSettlementMapper;
+import com.sprotygroup.betsettlement.model.Bet;
+import com.sprotygroup.betsettlement.event.EventOutcome;
+import com.sprotygroup.betsettlement.producer.SettlementProducer;
+import com.sprotygroup.betsettlement.repository.BetRepository;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import lombok.AllArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+@AllArgsConstructor
+public class BetSettlementService {
+    private final BetRepository betRepository;
+    private final SettlementProducer settlementProducer;
+    private final BetSettlementMapper betSettlementMapper;
+
+    @Transactional
+    public List<BetSettlement> settle(EventOutcome outcome) {
+        List<Bet> bets = betRepository.findByEventIdAndEventWinnerId(outcome.eventId(), outcome.eventWinnerId());
+
+        List<BetSettlement> settlements = bets.stream()
+                .peek(bet -> bet.setSettled(true))
+                .map(betSettlementMapper::toBetSettlement)
+                .collect(Collectors.toList());
+
+        betRepository.saveAll(bets);
+
+        settlementProducer.sendSettlement(settlements);
+        return settlements;
+    }
+}
