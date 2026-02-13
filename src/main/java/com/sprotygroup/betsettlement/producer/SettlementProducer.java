@@ -1,50 +1,57 @@
 package com.sprotygroup.betsettlement.producer;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sprotygroup.betsettlement.config.RocketMQProperties;
 import com.sprotygroup.betsettlement.event.BetSettlement;
+import com.sprotygroup.betsettlement.exception.SettlementException;
+import com.sprotygroup.betsettlement.mapper.BetSettlementMapper;
+import com.sprotygroup.betsettlement.model.Bet;
 import lombok.RequiredArgsConstructor;
-import org.apache.rocketmq.client.producer.DefaultMQProducer;
-import org.apache.rocketmq.client.producer.SendResult;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.rocketmq.client.producer.TransactionMQProducer;
+import org.apache.rocketmq.client.producer.TransactionSendResult;
 import org.apache.rocketmq.common.message.Message;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
+import static com.sprotygroup.betsettlement.event.EventType.SETTLEMENT;
+
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class SettlementProducer {
-    private static final Logger logger = LoggerFactory.getLogger(SettlementProducer.class);
 
-    private final DefaultMQProducer producer;
+    private final TransactionMQProducer producer;
     private final RocketMQProperties properties;
     private final ObjectMapper objectMapper;
+    private final BetSettlementMapper betSettlementMapper;
 
-    public void sendSettlement(List<BetSettlement> settlements) {
-        String topic = properties.getTopic().getBetSettlements();
+    public void sendSettlementTransactional(List<Bet> bets, Runnable dbTransaction) {
+        var topic = properties.getTopic().getBetSettlements();
 
-        settlements.forEach(settlement -> {
+        bets.forEach(bet -> {
             try {
-                String messageBody = objectMapper.writeValueAsString(settlement);
-                Message message = new Message(
-                    topic,
-                    "SETTLEMENT",
-                    settlement.betId().toString(),
-                    messageBody.getBytes(StandardCharsets.UTF_8)
+                var settlement = betSettlementMapper.toBetSettlement(bet);
+
+                var messageBody = objectMapper.writeValueAsString(settlement);
+
+                var message = new Message(
+                        topic,
+                        SETTLEMENT.toString(),
+                        bet.getId().toString(),
+                        messageBody.getBytes(StandardCharsets.UTF_8)
                 );
 
-                SendResult sendResult = producer.send(message);
-                logger.info("Sent bet settlement to RocketMQ - Topic: {}, BetId: {}, MsgId: {}, Status: {}",
-                    topic, settlement.betId(), sendResult.getMsgId(), sendResult.getSendStatus());
+                var sendResult = producer.sendMessageInTransaction(message, dbTransaction);
 
-            } catch (JsonProcessingException e) {
-                logger.error("Failed to serialize settlement for bet {}: {}", settlement.betId(), e.getMessage());
+                log.info("Sent bet settlement to RocketMQ (Transactional) - Topic: {}, BetId: {}, MsgId: {}, LocalTxState: {}",
+                        topic, bet.getId(), sendResult.getMsgId(), sendResult.getLocalTransactionState());
+
             } catch (Exception e) {
-                logger.error("Failed to send settlement to RocketMQ for bet {}: {}", settlement.betId(), e.getMessage());
+                log.error("Failed to send settlement to RocketMQ for bet {}: {}", bet.getId(), e.getMessage());
+                throw new SettlementException("Failed to send settlement", e.getCause().getMessage());
             }
         });
     }

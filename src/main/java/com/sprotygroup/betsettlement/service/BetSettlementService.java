@@ -13,7 +13,6 @@ import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @AllArgsConstructor
@@ -23,24 +22,27 @@ public class BetSettlementService {
     private final SettlementProducer settlementProducer;
     private final BetSettlementMapper betSettlementMapper;
 
-    @Transactional
     public List<BetSettlement> settle(EventOutcome outcome) {
-        List<Bet> bets = betRepository.findAllByEventIdAndEventWinnerIdAndSettled(outcome.eventId(), outcome.eventWinnerId(), false);
+        var bets = betRepository.findAllByEventIdAndEventWinnerIdAndSettled(outcome.eventId(), outcome.eventWinnerId(), false);
 
         if (bets.isEmpty()) {
-            log.info("No settled bets found for event {} and winner id {}", outcome.eventId(), outcome.eventWinnerId());
+            log.info("No unsettled bets found for event {}", outcome.eventId());
+            return List.of();
         }
 
-        List<BetSettlement> settlements = bets.stream()
-                .peek(bet -> {
-                    bet.setSettled(true);
-                })
+        bets.forEach(bet -> {
+            bet.setSettled(true);
+        });
+
+        Runnable dbTransaction = () -> {
+            betRepository.saveAll(bets);
+            log.info("Saved {} settled bets for event {}", bets.size(), outcome.eventId());
+        };
+
+        settlementProducer.sendSettlementTransactional(bets, dbTransaction);
+
+        return bets.stream()
                 .map(betSettlementMapper::toBetSettlement)
                 .collect(Collectors.toList());
-
-        betRepository.saveAll(bets);
-
-        settlementProducer.sendSettlement(settlements);
-        return settlements;
     }
 }

@@ -20,7 +20,7 @@ public class FailedEventOutcomeService {
 
     @Transactional
     public void saveFailedEvent(EventOutcome outcome, String errorMessage) {
-        FailedEventOutcome failedEvent = FailedEventOutcome.builder()
+        var failedEvent = FailedEventOutcome.builder()
                 .eventId(outcome.eventId())
                 .eventName(outcome.eventName())
                 .eventWinnerId(outcome.eventWinnerId())

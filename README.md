@@ -52,18 +52,15 @@ The service will:
 1. Publish the outcome to Kafka topic `event-outcomes`
 2. Consumer listens and retrieves unsettled bets for event 5001
 3. Settles the bets (marks won/lost based on winner match)
+4. Sends settlement messages to RocketMQ topic `bet-settlements` using **transactional messages**
 4. Sends settlement messages to RocketMQ topic `bet-settlements`
-5. View messages in RocketMQ Console at `http://localhost:8082`
+
+**Note**: RocketMQ transactional messages guarantee that settlements are only sent if database updates succeed. See `TRANSACTIONAL_MESSAGES.md` for details.
 
 ## Database
 
 
 ### Tables
-- **bets** - Stores user bets with event associations
-- **failed_event_outcomes** - Stores failed event outcomes for retry (not implemented in this version)
-
-### Sample Data
-The migration `001-create-bets-table.xml` includes sample bets:
 - Event ID `5001`: 3 bets (winner IDs: 9001, 9002, 9001)
 - Event ID `6001`: 1 bet (winner ID: 9100)
 - Event ID `5002`: 1 bet (winner ID: 9200)
