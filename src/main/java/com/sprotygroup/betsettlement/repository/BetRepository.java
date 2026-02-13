@@ -5,5 +5,5 @@ import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface BetRepository extends JpaRepository<Bet, Long> {
-    List<Bet> findByEventIdAndEventWinnerId(Long eventId, Long eventWinnerId);
+    List<Bet> findAllByEventIdAndEventWinnerIdAndSettled(Long eventId, Long eventWinnerId, boolean settled);
 }

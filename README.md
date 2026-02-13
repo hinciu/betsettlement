@@ -24,6 +24,9 @@ This starts:
 - **Kafka Broker** at `localhost:9092`
 - **Zookeeper** at `localhost:2181`
 - **Kafka UI** at `http://localhost:8083` (for monitoring topics and messages)
+- **RocketMQ NameServer** at `localhost:9876`
+- **RocketMQ Broker** at `localhost:10911`
+- **RocketMQ Console** at `http://localhost:8082` (for monitoring RocketMQ messages)
 
 ### 2. Run the Application
 ```bash
@@ -48,8 +51,9 @@ curl -X POST http://localhost:8084/api/event-outcomes \
 The service will:
 1. Publish the outcome to Kafka topic `event-outcomes`
 2. Consumer listens and retrieves unsettled bets for event 5001
-3. Settles the bets
-4. Sends settlement payloads to RocketMQ
+3. Settles the bets (marks won/lost based on winner match)
+4. Sends settlement messages to RocketMQ topic `bet-settlements`
+5. View messages in RocketMQ Console at `http://localhost:8082`
 
 ## Database
 
@@ -103,10 +107,17 @@ Browse to `http://localhost:8083` to:
 - Monitor consumer groups
 - Check broker health
 
+### RocketMQ Console
+Browse to `http://localhost:8082` to:
+- View topics and messages in `bet-settlements` topic
+- Monitor message status and delivery
+- Check broker and nameserver status
+- View consumer groups and subscriptions
+
 ### Application Logs
-Settlement payloads are logged as:
+Settlement results are logged as:
 ```
-INFO  c.s.b.service.RocketMqProducer - bet-settlements payload: BetSettlement[betId=1, userId=101, ...]
+INFO  c.s.b.p.SettlementProducer - Sent bet settlement to RocketMQ - Topic: bet-settlements, BetId: 1, MsgId: xxx, Status: SEND_OK
 ```
 
 ## Stop Services
@@ -130,6 +141,7 @@ docker-compose down -v
 - Spring Data JPA
 - H2 Database
 - Liquibase
+- Apache RocketMQ 5.1.4
 - MapStruct
 - Lombok
 - Docker Compose

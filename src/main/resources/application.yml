@@ -22,7 +22,7 @@ spring:
         spring:
           json:
             trusted:
-              packages: "com.sprotygroup.betsettlement.model"
+              packages: "com.sprotygroup.betsettlement.event"
 
     producer:
       acks: all
@@ -34,5 +34,16 @@ spring:
     admin:
       properties:
         delivery.timeout.ms: 120000
+
+rocketmq:
+  name-server: localhost:9876
+  producer:
+    group: bet-settlement-producer-group
+    send-message-timeout: 3000
+    retry-times-when-send-failed: 2
+    max-message-size: 4194304
+  topic:
+    bet-settlements: bet-settlements
+
 server:
   port: 8084
