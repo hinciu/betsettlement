@@ -12,10 +12,14 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import static com.sprotygroup.betsettlement.controller.EventOutcomeController.BASE_URL;
+
 @RestController
-@RequestMapping("/api/event-outcomes")
+@RequestMapping(BASE_URL)
 @AllArgsConstructor
 public class EventOutcomeController {
+
+    public static final String BASE_URL = "/api/event-outcomes";
 
     private final EventOutcomeProducer publisher;
     private final EventOutcomeMapper mapper;

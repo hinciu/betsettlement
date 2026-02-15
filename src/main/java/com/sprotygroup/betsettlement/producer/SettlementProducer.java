@@ -12,6 +12,7 @@ import org.apache.rocketmq.spring.core.RocketMQTemplate;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -21,12 +22,14 @@ import java.util.List;
 public class SettlementProducer {
 
     private static final String KEY_TAGS = "rocketmq_TAGS";
-    private static final String VALUE_TAGS = "rocketmq_TAGS";
+    private static final String VALUE_TAGS = "rocketmq_VALUES";
 
     private final RocketMQTemplate rocketMQTemplate;
     private final RocketMQProperties properties;
     private final BetSettlementMapper betSettlementMapper;
 
+
+    @Transactional
     public void sendSettlementTransactional(List<Bet> bets, Runnable dbTransaction) {
         var topic = properties.getTopic().getBetSettlements();
 

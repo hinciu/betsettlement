@@ -23,16 +23,18 @@ public class BetSettlementService {
     private final BetSettlementMapper betSettlementMapper;
 
     public List<BetSettlement> settle(EventOutcome outcome) {
-        var bets = betRepository.findAllByEventIdAndEventWinnerIdAndSettled(outcome.eventId(), outcome.eventWinnerId(), false);
+        List<Bet> bets = betRepository.findAllByEventIdAndEventWinnerIdAndSettled(
+            outcome.eventId(),
+            outcome.eventWinnerId(),
+            false
+        );
 
         if (bets.isEmpty()) {
-            log.info("No unsettled bets found for event {}", outcome.eventId());
+            log.info("No unsettled bets found for event {} and winner {}", outcome.eventId(), outcome.eventWinnerId());
             return List.of();
         }
 
-        bets.forEach(bet -> {
-            bet.setSettled(true);
-        });
+        bets.forEach(bet -> bet.setSettled(true));
 
         Runnable dbTransaction = () -> {
             betRepository.saveAll(bets);

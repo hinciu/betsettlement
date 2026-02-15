@@ -17,6 +17,7 @@ public class EventOutcomeProducer {
     private final FailedEventOutcomeService failedEventOutcomeService;
 
     public void publish(EventOutcome outcome) {
+        // skipping message key in order to evenly distribute events across partitions as events order does not play crucial role.
         var future = kafkaTemplate.sendDefault(outcome);
 
         future.whenComplete((result, ex) -> {

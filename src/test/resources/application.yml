@@ -1,6 +1,4 @@
 spring:
-  application:
-    name: betsettlement
   datasource:
     url: "jdbc:h2:mem:betsettlement;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE"
     driver-class-name: org.h2.Driver
@@ -8,13 +6,15 @@ spring:
     password: ""
   jpa:
     hibernate:
-      ddl-auto: validate
+      ddl-auto: update
+  sql:
+    init:
+      mode: never
   kafka:
-    bootstrap-servers: localhost:9092
     template:
       default-topic: event-outcomes
     consumer:
-      group-id: bet-settlement-group
+      group-id: bet-settlement-group-test
       auto-offset-reset: earliest
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
@@ -23,32 +23,15 @@ spring:
           json:
             trusted:
               packages: "com.sprotygroup.betsettlement.event"
-            value:
-              default:
-                type: com.sprotygroup.betsettlement.event.EventOutcome
     producer:
-      acks: all
-      retries: 2147483647
-      properties:
-        idempotence: true
-      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
-    admin:
-      properties:
-        delivery.timeout.ms: 120000
-
-rocketmq:
-  name-server: localhost:9876
-  producer:
-    group: bet-settlement-producer-group
-    send-message-timeout: 3000
-    retry-times-when-send-failed: 2
-    max-message-size: 4194304
-
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
 app:
   rocketmq:
     topic:
       bet-settlements: bet-settlements
-
-server:
-  port: 8084
+logging:
+  level:
+    org.springframework.kafka: WARN
+    org.apache.kafka: WARN
+    com.sprotygroup.betsettlement: DEBUG
