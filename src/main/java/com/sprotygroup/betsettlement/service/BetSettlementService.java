@@ -24,7 +24,7 @@ public class BetSettlementService {
     private final BetSettlementMapper betSettlementMapper;
 
     @Transactional
-    public List<BetSettlement> settle(EventOutcome outcome, Runnable onSuccess) {
+    public List<BetSettlement> settle(EventOutcome outcome) {
         List<Bet> bets = betRepository.findAllByEventIdAndEventWinnerIdAndSettled(
                 outcome.eventId(),
                 outcome.eventWinnerId(),
@@ -33,7 +33,6 @@ public class BetSettlementService {
 
         if (bets.isEmpty()) {
             log.info("No unsettled bets found for event {} and winner {}", outcome.eventId(), outcome.eventWinnerId());
-            onSuccess.run();
             return List.of();
         }
 
@@ -42,7 +41,6 @@ public class BetSettlementService {
         Runnable dbTransaction = () -> {
             betRepository.saveAll(bets);
             log.info("Saved {} settled bets for event {}", bets.size(), outcome.eventId());
-            onSuccess.run();
 
         };
 

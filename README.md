@@ -1,164 +1,324 @@
-# Sports Betting Settlement Trigger Service
+# Sports Betting Settlement Trigger Service - Technical Documentation
 
 ## Overview
-Spring Boot service that publishes sports event outcomes to Kafka, consumes them to settle in-memory bets stored in H2, and mocks RocketMQ by logging settlement payloads.
 
-## Prerequisites
-- Docker & Docker Compose (required)
-- JDK 21+ and Maven 3.9+ (only if running application locally)
+The **Sports Betting Settlement Trigger Service** is a Spring Boot-based microservice designed to handle sports event outcomes and automatically settle corresponding bets. The service demonstrates event-driven architecture using Apache Kafka for event ingestion and Apache RocketMQ for settlement message distribution.
 
-## Quick Start
+## Project Structure
 
-### Option 1: Run Everything with Docker Compose (Recommended)
+```
+betsettlement/
+├── src/
+│   ├── main/
+│   │   ├── java/com/sprotygroup/betsettlement/
+│   │   │   ├── BetsettlementApplication.java      # Main Spring Boot application
+│   │   │   ├── config/
+│   │   │   │   ├── Config.java                    # General configuration
+│   │   │   │   ├── KafkaConfig.java               # Kafka consumer configuration
+│   │   │   │   └── RocketMQProperties.java        # RocketMQ properties binding
+│   │   │   ├── controller/
+│   │   │   │   └── EventOutcomeController.java    # REST API endpoint
+│   │   │   ├── dto/
+│   │   │   │   └── EventOutcomeRequest.java       # Request DTO with validation
+│   │   │   ├── event/
+│   │   │   │   ├── BetSettlement.java             # Settlement message record
+│   │   │   │   ├── EventOutcome.java              # Event outcome record
+│   │   │   │   └── EventType.java                 # Message type enum
+│   │   │   ├── exception/
+│   │   │   │   └── SettlementException.java       # Custom exception
+│   │   │   ├── listener/
+│   │   │   │   └── EventOutcomeListener.java      # Kafka consumer
+│   │   │   ├── mapper/
+│   │   │   │   ├── BetSettlementMapper.java       # MapStruct mapper
+│   │   │   │   └── EventOutcomeMapper.java        # MapStruct mapper
+│   │   │   ├── model/
+│   │   │   │   ├── Bet.java                       # Bet JPA entity
+│   │   │   │   ├── EventOutcomeStatus.java        # Status enum
+│   │   │   │   └── FailedEventOutcome.java        # Failed event tracking
+│   │   │   ├── producer/
+│   │   │   │   ├── EventOutcomeProducer.java      # Kafka producer
+│   │   │   │   ├── SettlementProducer.java        # RocketMQ producer
+│   │   │   │   └── BetSettlementTransactionListener.java # Transaction handler
+│   │   │   ├── repository/
+│   │   │   │   ├── BetRepository.java             # JPA repository
+│   │   │   │   └── FailedEventOutcomeRepository.java
+│   │   │   └── service/
+│   │   │       ├── BetSettlementService.java      # Core settlement logic
+│   │   │       └── FailedEventOutcomeService.java # Error tracking
+│   │   └── resources/
+│   │       ├── application.yml                    # Application configuration
+│   │       ├── schema.sql                         # Database schema
+│   │       └── data.sql                           # Test data
+│   └── test/
+│       ├── java/com/sprotygroup/betsettlement/
+│       │   └── integration/
+│       │       ├── BaseIT.java                    # Base integration test
+│       │       └── BetSettlementIntegrationTest.java # Full integration tests
+│       └── resources/
+│           ├── application.yml                    # Test configuration
+│           ├── mock-request/                      # Test JSON payloads
+│           └── sql/                               # Test SQL scripts
+├── docker/
+│   └── rocketmq/
+│       └── broker.conf                            # RocketMQ broker config
+├── docker-compose.yml                             # Multi-container orchestration
+├── Dockerfile                                     # Application container image
+├── pom.xml                                        # Maven dependencies
+└── README.md                                      # User guide
+```
 
-Start all services including the application:
+## Technology Stack
+
+### Core Framework
+- **Spring Boot 4.0.2** - Application framework
+- **Java 21** - Programming language with modern features (records, pattern matching)
+
+### Messaging
+- **Apache Kafka** - Event streaming platform for event outcomes
+- **Apache RocketMQ 5.1.4** - Message queue for settlement distribution
+- **Spring Kafka** - Kafka integration with Spring
+- **RocketMQ Spring Boot Starter 2.3.0** - RocketMQ integration
+
+### Data Persistence
+- **Spring Data JPA** - Data access layer
+- **H2 Database** - In-memory database (runtime scope)
+- **Hibernate** - JPA implementation
+
+### API & Documentation
+- **Spring Web** - REST API framework
+- **Spring Validation** - Bean validation with Jakarta Validation
+- **Springdoc OpenAPI 2.3.0** - Swagger UI and OpenAPI 3 documentation
+
+### Code Generation & Utilities
+- **MapStruct 1.5.5.Final** - Type-safe bean mapping
+- **Lombok** - Boilerplate code reduction
+- **Jackson** - JSON serialization/deserialization
+
+### Testing
+- **Spring Boot Test** - Testing framework
+- **JUnit 5** - Testing framework
+- **Spring Kafka Test** - Embedded Kafka for integration tests
+- **Awaitility 4.2.0** - Asynchronous testing utilities
+- **Mockito** - Mocking framework
+
+### DevOps
+- **Docker & Docker Compose** - Containerization and orchestration
+- **Maven** - Build and dependency management
+
+## Setup and Installation
+
+### Prerequisites
+
+#### Required
+- **Docker** (version 20.10+)
+- **Docker Compose** (version 2.0+)
+
+#### Optional (for local development)
+- **JDK 21** or higher
+- **Maven 3.9+** (or use included Maven wrapper `./mvnw`)
+
+### Verify Prerequisites
+
 ```bash
+# Check Docker
+docker --version
+
+# Check Docker Compose
+docker-compose --version
+
+# Optional: Check Java (for local development)
+java -version
+
+# Optional: Check Maven (for local development)
+mvn --version
+```
+
+## Running the Application
+
+### Option 1: Full Docker Compose Setup (Recommended)
+
+This is the **easiest and recommended** approach. All services run in containers.
+
+#### Start All Services
+
+```bash
+# Clone the repository (if not already done)
+cd /path/to/betsettlement
+
+# Start all services (builds application automatically)
 docker-compose up -d
-```
 
-This will build the Spring Boot application and start:
-- **Bet Settlement Application** at `http://localhost:8084`
-- **Kafka Broker** at `localhost:9092`
-- **Zookeeper** at `localhost:2181`
-- **Kafka UI** at `http://localhost:8083` (for monitoring topics and messages)
-- **RocketMQ NameServer** at `localhost:9876`
-- **RocketMQ Broker** at `localhost:10911`
-- **RocketMQ Console** at `http://localhost:8082` (for monitoring RocketMQ messages)
-
-Verify all services are running:
-```bash
+# Verify all containers are running
 docker-compose ps
+
+# Expected output: 9 services running
+# - betsettlement (application)
+# - kafka
+# - zookeeper
+# - kafka-ui
+# - rocketmq-namesrv
+# - rocketmq-broker
+# - rocketmq-console
+# - rocketmq-init
 ```
 
-View application logs:
+#### Check Service Status
+
 ```bash
+# View application logs
 docker-compose logs -f betsettlement
+
+# View all logs
+docker-compose logs -f
+
+# Check specific service
+docker-compose logs kafka
 ```
 
-### Option 2: Run Application Locally with Docker Dependencies
+#### Access Services
 
-#### 1. Start Kafka and RocketMQ
+- **Application API**: http://localhost:8084
+- **Swagger UI**: http://localhost:8084/swagger-ui.html
+- **H2 Console**: http://localhost:8084/h2-console
+- **Kafka UI**: http://localhost:8083
+- **RocketMQ Console**: http://localhost:8082
+
+### Option 2: Local Application with Docker Dependencies
+
+Run Kafka and RocketMQ in Docker, but run the application locally for development.
+
+#### Step 1: Start Infrastructure
+
 ```bash
+# Start only Kafka and RocketMQ services
 docker-compose up -d zookeeper kafka kafka-ui rocketmq-namesrv rocketmq-broker rocketmq-console rocketmq-init
 ```
 
-#### 2. Run the Application Locally
+#### Step 2: Build and Run Application Locally
+
 ```bash
+# Using Maven wrapper (recommended)
+./mvnw clean install
 ./mvnw spring-boot:run
+
+# OR using installed Maven
+mvn clean install
+mvn spring-boot:run
+
+# Application starts on port 8084
 ```
 
-The API is available at `http://localhost:8084`.
+#### Step 3: Verify Application
 
-### Test the API
-
-Publish an event outcome:
 ```bash
-curl -X POST http://localhost:8084/api/event-outcomes \
-  -H "Content-Type: application/json" \
-  -d '{
-    "eventId": 5001,
-    "eventName": "Match A",
-    "eventWinnerId": 9001
-  }'
+# Check application health
+curl http://localhost:8084/actuator/health
+
+# Access Swagger UI
+open http://localhost:8084/swagger-ui.html
 ```
 
-The service will:
-1. Publish the outcome to Kafka topic `event-outcomes`
-2. Consumer listens and retrieves unsettled bets for event 5001
-3. Settles the bets (marks won/lost based on winner match)
-4. Sends settlement messages to RocketMQ topic `bet-settlements` using **transactional messages**
-4. Sends settlement messages to RocketMQ topic `bet-settlements`
+### Option 3: Manual Build and Run (Without Docker)
 
-**Note**: RocketMQ transactional messages guarantee that settlements are only sent if database updates succeed. See `TRANSACTIONAL_MESSAGES.md` for details.
+**Note**: This requires manual installation of Kafka and RocketMQ.
 
-## Database
+#### Prerequisites
+- Kafka broker running on `localhost:9092`
+- RocketMQ NameServer running on `localhost:9876`
 
+#### Build and Run
 
-### Tables
-- Event ID `5001`: 3 bets (winner IDs: 9001, 9002, 9001)
-- Event ID `6001`: 1 bet (winner ID: 9100)
-- Event ID `5002`: 1 bet (winner ID: 9200)
+```bash
+# Build the application
+./mvnw clean package -DskipTests
 
-### H2 Console
-Access H2 console at `http://localhost:8084/h2-console`:
-- JDBC URL: `jdbc:h2:mem:betsettlement`
-- Username: `sa`
-- Password: _(empty)_
+# Run the JAR
+java -jar target/betsettlement-0.0.1-SNAPSHOT.jar
+
+# With custom properties
+java -jar target/betsettlement-0.0.1-SNAPSHOT.jar \
+  --spring.kafka.bootstrap-servers=localhost:9092 \
+  --rocketmq.name-server=localhost:9876
+```
 
 ## API Documentation
 
+### Interactive API Documentation
+
+Once the application is running, access the **Swagger UI** at:
+
+```
+http://localhost:8084/swagger-ui.html
+```
+
+This provides:
+- Interactive API exploration
+- Request/response examples
+- Schema definitions
+- Try-it-out functionality
+
+### OpenAPI Specification
+
+Raw OpenAPI 3.0 specification available at:
+
+```
+http://localhost:8084/api-docs
+```
+
 ### Endpoints
 
-#### POST /api/event-outcomes
-Publishes sports event outcome to Kafka.
+#### POST `/api/event-outcomes`
 
-**Request:**
+Publishes a sports event outcome to Kafka, triggering the bet settlement process.
+
+**Request Headers:**
+```
+Content-Type: application/json
+```
+
+**Request Body:**
 ```json
 {
   "eventId": 5001,
-  "eventName": "Match A",
+  "eventName": "Championship Final",
   "eventWinnerId": 9001
 }
 ```
 
-**Response:** `202 Accepted`
+**Field Validation:**
+- `eventId`: Required, must be a positive Long
+- `eventName`: Required, cannot be blank
+- `eventWinnerId`: Required, must be a positive Long
+
+**Response: 202 Accepted**
 ```json
 {
   "eventId": 5001,
-  "eventName": "Match A",
+  "eventName": "Championship Final",
   "eventWinnerId": 9001
 }
 ```
 
-## Monitoring
+**Error Responses:**
 
-### Kafka UI
-Browse to `http://localhost:8083` to:
-- View topics and messages
-- Monitor consumer groups
-- Check broker health
-
-### RocketMQ Console
-Browse to `http://localhost:8082` to:
-- View topics and messages in `bet-settlements` topic
-- Monitor message status and delivery
-- Check broker and nameserver status
-- View consumer groups and subscriptions
-
-### Application Logs
-Settlement results are logged as:
-```
-INFO  c.s.b.p.SettlementProducer - Sent bet settlement to RocketMQ - Topic: bet-settlements, BetId: 1, MsgId: xxx, Status: SEND_OK
+- **400 Bad Request**: Validation failed
+```json
+{
+  "timestamp": "2026-02-16T10:30:00.000+00:00",
+  "status": 400,
+  "error": "Bad Request",
+  "message": "Validation failed",
+  "path": "/api/event-outcomes"
+}
 ```
 
-## Stop Services
-
-### Stop All Services (Docker Compose)
-```bash
-docker-compose down
+- **500 Internal Server Error**: Failed to publish to Kafka
+```json
+{
+  "timestamp": "2026-02-16T10:30:00.000+00:00",
+  "status": 500,
+  "error": "Internal Server Error",
+  "message": "Failed to publish event outcome",
+  "path": "/api/event-outcomes"
+}
 ```
-
-To remove volumes and clean state:
-```bash
-docker-compose down -v
-```
-
-### Rebuild Application Image
-If you make code changes and need to rebuild:
-```bash
-docker-compose up -d --build betsettlement
-```
-
-### Stop Local Application Only
-If running locally (Option 2), press `Ctrl+C` in the terminal running the application.
-
-## Technologies
-- Spring Boot 3.4.2
-- Spring Kafka
-- Spring Data JPA
-- H2 Database
-- Liquibase
-- Apache RocketMQ 5.1.4
-- MapStruct
-- Lombok
-- Docker Compose
