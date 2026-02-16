@@ -29,7 +29,6 @@ public class SettlementProducer {
     private final BetSettlementMapper betSettlementMapper;
 
 
-    @Transactional
     public void sendSettlementTransactional(List<Bet> bets, Runnable dbTransaction) {
         var topic = properties.getTopic().getBetSettlements();
 

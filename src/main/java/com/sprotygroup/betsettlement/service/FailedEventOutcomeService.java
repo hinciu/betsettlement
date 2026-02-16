@@ -17,7 +17,7 @@ import java.time.LocalDateTime;
 public class FailedEventOutcomeService {
 
     private final FailedEventOutcomeRepository failedEventOutcomeRepository;
-
+    // save failed event for future reattempt or manual review (not implemented yet.)
     @Transactional
     public void saveFailedEvent(EventOutcome outcome, String errorMessage) {
         var failedEvent = FailedEventOutcome.builder()

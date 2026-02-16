@@ -13,6 +13,7 @@ import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @AllArgsConstructor
@@ -22,15 +23,17 @@ public class BetSettlementService {
     private final SettlementProducer settlementProducer;
     private final BetSettlementMapper betSettlementMapper;
 
-    public List<BetSettlement> settle(EventOutcome outcome) {
+    @Transactional
+    public List<BetSettlement> settle(EventOutcome outcome, Runnable onSuccess) {
         List<Bet> bets = betRepository.findAllByEventIdAndEventWinnerIdAndSettled(
-            outcome.eventId(),
-            outcome.eventWinnerId(),
-            false
+                outcome.eventId(),
+                outcome.eventWinnerId(),
+                false
         );
 
         if (bets.isEmpty()) {
             log.info("No unsettled bets found for event {} and winner {}", outcome.eventId(), outcome.eventWinnerId());
+            onSuccess.run();
             return List.of();
         }
 
@@ -39,6 +42,8 @@ public class BetSettlementService {
         Runnable dbTransaction = () -> {
             betRepository.saveAll(bets);
             log.info("Saved {} settled bets for event {}", bets.size(), outcome.eventId());
+            onSuccess.run();
+
         };
 
         settlementProducer.sendSettlementTransactional(bets, dbTransaction);
