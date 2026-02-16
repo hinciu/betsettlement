@@ -105,6 +105,24 @@ services:
       "
     restart: unless-stopped
 
+  betsettlement:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: betsettlement
+    ports:
+      - "8084:8084"
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      ROCKETMQ_NAME_SERVER: rocketmq-namesrv:9876
+    depends_on:
+      - kafka
+      - rocketmq-broker
+      - rocketmq-init
+    networks:
+      - kafka-network
+    restart: unless-stopped
+
 networks:
   kafka-network:
     driver: bridge

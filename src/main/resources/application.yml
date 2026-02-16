@@ -10,7 +10,7 @@ spring:
     hibernate:
       ddl-auto: validate
   kafka:
-    bootstrap-servers: localhost:9092
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     template:
       default-topic: event-outcomes
     consumer:
@@ -38,7 +38,7 @@ spring:
         delivery.timeout.ms: 120000
 
 rocketmq:
-  name-server: localhost:9876
+  name-server: ${ROCKETMQ_NAME_SERVER:localhost:9876}
   producer:
     group: bet-settlement-producer-group
     send-message-timeout: 3000
@@ -61,3 +61,4 @@ springdoc:
     enabled: true
     operationsSorter: method
     tagsSorter: alpha
+

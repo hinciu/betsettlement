@@ -4,23 +4,20 @@
 Spring Boot service that publishes sports event outcomes to Kafka, consumes them to settle in-memory bets stored in H2, and mocks RocketMQ by logging settlement payloads.
 
 ## Prerequisites
-- JDK 21+
-- Maven 3.9+
-- Docker & Docker Compose (for Kafka)
+- Docker & Docker Compose (required)
+- JDK 21+ and Maven 3.9+ (only if running application locally)
 
 ## Quick Start
 
-### 1. Start Kafka Environment
+### Option 1: Run Everything with Docker Compose (Recommended)
+
+Start all services including the application:
 ```bash
 docker-compose up -d
 ```
 
-Verify services are running:
-```bash
-docker-compose ps
-```
-
-This starts:
+This will build the Spring Boot application and start:
+- **Bet Settlement Application** at `http://localhost:8084`
 - **Kafka Broker** at `localhost:9092`
 - **Zookeeper** at `localhost:2181`
 - **Kafka UI** at `http://localhost:8083` (for monitoring topics and messages)
@@ -28,14 +25,31 @@ This starts:
 - **RocketMQ Broker** at `localhost:10911`
 - **RocketMQ Console** at `http://localhost:8082` (for monitoring RocketMQ messages)
 
-### 2. Run the Application
+Verify all services are running:
+```bash
+docker-compose ps
+```
+
+View application logs:
+```bash
+docker-compose logs -f betsettlement
+```
+
+### Option 2: Run Application Locally with Docker Dependencies
+
+#### 1. Start Kafka and RocketMQ
+```bash
+docker-compose up -d zookeeper kafka kafka-ui rocketmq-namesrv rocketmq-broker rocketmq-console rocketmq-init
+```
+
+#### 2. Run the Application Locally
 ```bash
 ./mvnw spring-boot:run
 ```
 
 The API is available at `http://localhost:8084`.
 
-### 3. Test the API
+### Test the API
 
 Publish an event outcome:
 ```bash
@@ -119,18 +133,24 @@ INFO  c.s.b.p.SettlementProducer - Sent bet settlement to RocketMQ - Topic: bet-
 
 ## Stop Services
 
-### Stop Application
-Press `Ctrl+C` in the terminal running the application.
-
-### Stop Kafka
+### Stop All Services (Docker Compose)
 ```bash
 docker-compose down
 ```
 
-To remove volumes (clean state):
+To remove volumes and clean state:
 ```bash
 docker-compose down -v
 ```
+
+### Rebuild Application Image
+If you make code changes and need to rebuild:
+```bash
+docker-compose up -d --build betsettlement
+```
+
+### Stop Local Application Only
+If running locally (Option 2), press `Ctrl+C` in the terminal running the application.
 
 ## Technologies
 - Spring Boot 3.4.2
