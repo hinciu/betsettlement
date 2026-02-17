@@ -3,13 +3,12 @@ package com.sprotygroup.betsettlement.integration;
 import com.sprotygroup.betsettlement.model.Bet;
 import com.sprotygroup.betsettlement.repository.BetRepository;
 
+import org.apache.rocketmq.client.producer.DefaultMQProducer;
 import org.apache.rocketmq.spring.core.RocketMQTemplate;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.messaging.Message;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.context.jdbc.SqlConfig;
@@ -25,22 +24,19 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 
-class BetSettlementIntegrationTest extends BaseIT {
+class BetSettlementIT extends BaseIT {
     @Autowired
     private BetRepository betRepository;
 
     @MockitoBean
     private RocketMQTemplate rocketMQTemplate;
 
+    private DefaultMQProducer mockProducer;
 
     @BeforeEach
     void setUp() {
-        doAnswer(invocation -> {
-            Runnable dbTransaction = invocation.getArgument(2);
-            dbTransaction.run();
-            return null;
-        }).when(rocketMQTemplate).sendMessageInTransaction(anyString(), any(Message.class), any(Runnable.class));
-
+        mockProducer = mock(DefaultMQProducer.class);
+        when(rocketMQTemplate.getProducer()).thenReturn(mockProducer);
     }
 
     @Test
@@ -58,17 +54,10 @@ class BetSettlementIntegrationTest extends BaseIT {
                 .andExpect(jsonPath("$.eventName").value("Championship Final"))
                 .andExpect(jsonPath("$.eventWinnerId").value(9001L));
 
-        ArgumentCaptor<String> topicCaptor = ArgumentCaptor.forClass(String.class);
-        ArgumentCaptor<Message> settlementCaptor = ArgumentCaptor.forClass(Message.class);
-        ArgumentCaptor<Runnable> transactionCaptor = ArgumentCaptor.forClass(Runnable.class);
-
         await()
                 .atMost(10, TimeUnit.SECONDS)
                 .untilAsserted(() -> {
-
-                    verify(rocketMQTemplate, times(2))
-                            .sendMessageInTransaction(topicCaptor.capture(), settlementCaptor.capture(), transactionCaptor.capture());
-
+                    verify(mockProducer, times(2)).send(anyList());
 
                     List<Bet> allBets = betRepository.findAll();
 
@@ -196,15 +185,10 @@ class BetSettlementIntegrationTest extends BaseIT {
                 .andExpect(jsonPath("$.eventName").value("Duplicate Event Test"))
                 .andExpect(jsonPath("$.eventWinnerId").value(9100L));
 
-        ArgumentCaptor<String> topicCaptor = ArgumentCaptor.forClass(String.class);
-        ArgumentCaptor<Message> settlementCaptor = ArgumentCaptor.forClass(Message.class);
-        ArgumentCaptor<Runnable> transactionCaptor = ArgumentCaptor.forClass(Runnable.class);
-
         await()
                 .atMost(10, TimeUnit.SECONDS)
                 .untilAsserted(() -> {
-                    verify(rocketMQTemplate, times(2))
-                            .sendMessageInTransaction(topicCaptor.capture(), settlementCaptor.capture(), transactionCaptor.capture());
+                    verify(mockProducer, times(2)).send(anyList()); // Assuming distribution similar to success test
 
                     List<Bet> allBets = betRepository.findAll();
                     assertThat(allBets).hasSize(3);
@@ -215,12 +199,7 @@ class BetSettlementIntegrationTest extends BaseIT {
                     assertThat(settledCount).isEqualTo(2);
                 });
 
-        reset(rocketMQTemplate);
-        doAnswer(invocation -> {
-            Runnable dbTransaction = invocation.getArgument(2);
-            dbTransaction.run();
-            return null;
-        }).when(rocketMQTemplate).sendMessageInTransaction(anyString(), any(Message.class), any(Runnable.class));
+        clearInvocations(mockProducer);
 
         mockMvc.perform(post(BASE_URL)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -232,7 +211,7 @@ class BetSettlementIntegrationTest extends BaseIT {
                 .pollDelay(2, TimeUnit.SECONDS)
                 .atMost(5, TimeUnit.SECONDS)
                 .untilAsserted(() -> {
-                    verifyNoInteractions(rocketMQTemplate);
+                    verifyNoInteractions(mockProducer);
 
                     List<Bet> allBets = betRepository.findAll();
                     assertThat(allBets).hasSize(3);
@@ -250,12 +229,8 @@ class BetSettlementIntegrationTest extends BaseIT {
             config = @SqlConfig(transactionMode = SqlConfig.TransactionMode.ISOLATED))
     @Sql("classpath:sql/insert-bets-for-rollback.sql")
     void shouldRollbackSettledBetsWhenRocketMQPublishFails() throws Exception {
-        reset(rocketMQTemplate);
-        doAnswer(invocation -> {
-            Runnable dbTransaction = invocation.getArgument(2);
-            dbTransaction.run();
-            throw new RuntimeException("RocketMQ publish failed");
-        }).when(rocketMQTemplate).sendMessageInTransaction(anyString(), any(Message.class), any(Runnable.class));
+        doThrow(new RuntimeException("RocketMQ publish failed"))
+                .when(mockProducer).send(anyList());
 
         mockMvc.perform(post(BASE_URL)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -266,7 +241,7 @@ class BetSettlementIntegrationTest extends BaseIT {
                 .andExpect(jsonPath("$.eventWinnerId").value(9300L));
 
         await()
-                .pollDelay(2, TimeUnit.SECONDS)
+                .pollDelay(2, TimeUnit.SECONDS) // Wait for processing to fail
                 .atMost(5, TimeUnit.SECONDS)
                 .untilAsserted(() -> {
                     List<Bet> allBets = betRepository.findAll();

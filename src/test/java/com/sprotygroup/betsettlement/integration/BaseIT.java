@@ -18,7 +18,7 @@ import static org.springframework.core.io.ResourceLoader.CLASSPATH_URL_PREFIX;
         "spring.autoconfigure.exclude=org.apache.rocketmq.spring.autoconfigure.RocketMQAutoConfiguration"
 })
 @AutoConfigureMockMvc
-@EmbeddedKafka(partitions = 1, topics = {"event-outcomes"})
+@EmbeddedKafka(partitions = 1, topics = {"event-outcomes", "settlement-tasks"})
 @DirtiesContext
 public class BaseIT {
     @Autowired

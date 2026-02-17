@@ -1,6 +1,7 @@
 CREATE TABLE bets
 (
     id              BIGINT                              NOT NULL AUTO_INCREMENT,
+    --     sharding is not configured at the moment, but assuming that user_id is used for sharding to achieve better performance while betting;
     user_id         BIGINT                              NOT NULL,
     event_id        BIGINT                              NOT NULL,
     event_market_id BIGINT                              NOT NULL,

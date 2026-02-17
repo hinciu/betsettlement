@@ -1,14 +1,14 @@
 package com.sprotygroup.betsettlement.service;
 
-import com.sprotygroup.betsettlement.event.BetSettlement;
-import com.sprotygroup.betsettlement.mapper.BetSettlementMapper;
 import com.sprotygroup.betsettlement.model.Bet;
-import com.sprotygroup.betsettlement.event.EventOutcome;
 import com.sprotygroup.betsettlement.producer.SettlementProducer;
 import com.sprotygroup.betsettlement.repository.BetRepository;
+import com.sprotygroup.betsettlement.dto.SettlementTask;
+import com.sprotygroup.betsettlement.exception.SettlementException;
 
+import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,33 +21,45 @@ import org.springframework.transaction.annotation.Transactional;
 public class BetSettlementService {
     private final BetRepository betRepository;
     private final SettlementProducer settlementProducer;
-    private final BetSettlementMapper betSettlementMapper;
 
     @Transactional
-    public List<BetSettlement> settle(EventOutcome outcome) {
-        List<Bet> bets = betRepository.findAllByEventIdAndEventWinnerIdAndSettled(
-                outcome.eventId(),
-                outcome.eventWinnerId(),
-                false
-        );
+    public void processBucket(SettlementTask task) {
+        log.info("Starting processing bucket {}/{} for event {}", task.bucketId(), task.totalBuckets(), task.eventId());
 
-        if (bets.isEmpty()) {
-            log.info("No unsettled bets found for event {} and winner {}", outcome.eventId(), outcome.eventWinnerId());
-            return List.of();
+        try (Stream<Bet> betStream = betRepository.streamWinningBetsByBucket(
+                task.eventId(), task.winnerId(), task.totalBuckets(), task.bucketId())) {
+
+            List<Bet> currentBatch = new ArrayList<>();
+            int[] processedCount = {0};
+
+            betStream.forEach(bet -> {
+                bet.setSettled(true);
+                currentBatch.add(bet);
+                processedCount[0]++;
+
+                if (currentBatch.size() >= 500) {
+                    processBatch(currentBatch);
+                    currentBatch.clear();
+                }
+            });
+
+            if (!currentBatch.isEmpty()) {
+                processBatch(currentBatch);
+            }
+
+            log.info("Finished processing bucket {}/{} for event {}. Total processed: {}",
+                    task.bucketId(), task.totalBuckets(), task.eventId(), processedCount[0]);
+
+        } catch (Exception e) {
+            log.error("Error processing bucket {} for event {}", task.bucketId(), task.eventId(), e);
+            throw new SettlementException("Failed to process bucket " + task.bucketId(), e.getMessage());
         }
+    }
 
-        bets.forEach(bet -> bet.setSettled(true));
-
-        Runnable dbTransaction = () -> {
-            betRepository.saveAll(bets);
-            log.info("Saved {} settled bets for event {}", bets.size(), outcome.eventId());
-
-        };
-
-        settlementProducer.sendSettlementTransactional(bets, dbTransaction);
-
-        return bets.stream()
-                .map(betSettlementMapper::toBetSettlement)
-                .collect(Collectors.toList());
+    private void processBatch(List<Bet> batch) {
+        if (batch.isEmpty()) return;
+        betRepository.saveAll(batch);
+        betRepository.flush();
+        settlementProducer.sendBatch(batch);
     }
 }

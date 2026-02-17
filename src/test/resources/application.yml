@@ -13,23 +13,41 @@ spring:
   kafka:
     template:
       default-topic: event-outcomes
+    listener:
+      ack-mode: manual_immediate
     consumer:
-      group-id: bet-settlement-group-test
+      group-id: outcome-group
       auto-offset-reset: earliest
+      enable-auto-commit: false
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
         spring:
           json:
             trusted:
-              packages: "com.sprotygroup.betsettlement.event"
+              packages: "com.sprotygroup.betsettlement.event,com.sprotygroup.betsettlement.dto"
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
 app:
+  kafka:
+    topics:
+      event-outcomes:
+        name: event-outcomes
+        partitions: 2
+        replicas: 1
+        group: outcome-group
+      settlement-tasks:
+        name: settlement-tasks
+        partitions: 2
+        replicas: 1
+        group: bet-settlement-task-group
   rocketmq:
     topic:
       bet-settlements: bet-settlements
+  settlement:
+    total-buckets: ${app.kafka.topics.settlement-tasks.partitions}
+    task-topic: ${app.kafka.topics.settlement-tasks.name}
 logging:
   level:
     org.springframework.kafka: WARN

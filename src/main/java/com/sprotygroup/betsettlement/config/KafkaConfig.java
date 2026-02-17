@@ -1,9 +1,11 @@
 package com.sprotygroup.betsettlement.config;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.kafka.clients.admin.NewTopic;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
+import org.springframework.kafka.config.TopicBuilder;
 import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.kafka.listener.DefaultErrorHandler;
 import org.springframework.kafka.support.ExponentialBackOffWithMaxRetries;
@@ -42,6 +44,20 @@ public class KafkaConfig {
 
         return errorHandler;
     }
+
+    @Bean
+    public NewTopic settlementTasksTopic(KafkaTopicsProperties properties) {
+        return TopicBuilder.name(properties.getSettlementTasks().getName())
+                .partitions(properties.getSettlementTasks().getPartitions())
+                .replicas(properties.getSettlementTasks().getReplicas())
+                .build();
+    }
+
+    @Bean
+    public NewTopic eventOutcomesTopic(KafkaTopicsProperties properties) {
+        return TopicBuilder.name(properties.getEventOutcomes().getName())
+                .partitions(properties.getEventOutcomes().getPartitions())
+                .replicas(properties.getEventOutcomes().getReplicas())
+                .build();
+    }
 }
-
-

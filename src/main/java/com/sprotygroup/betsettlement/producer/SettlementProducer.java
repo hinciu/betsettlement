@@ -6,51 +6,57 @@ import com.sprotygroup.betsettlement.event.EventType;
 import com.sprotygroup.betsettlement.exception.SettlementException;
 import com.sprotygroup.betsettlement.mapper.BetSettlementMapper;
 import com.sprotygroup.betsettlement.model.Bet;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.rocketmq.common.message.Message;
 import org.apache.rocketmq.spring.core.RocketMQTemplate;
-import org.springframework.messaging.Message;
-import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class SettlementProducer {
 
-    private static final String KEY_TAGS = "rocketmq_TAGS";
-    private static final String VALUE_TAGS = "rocketmq_VALUES";
-
     private final RocketMQTemplate rocketMQTemplate;
     private final RocketMQProperties properties;
     private final BetSettlementMapper betSettlementMapper;
+    private final ObjectMapper objectMapper;
 
-
-    public void sendSettlementTransactional(List<Bet> bets, Runnable dbTransaction) {
+    @SneakyThrows
+    public void sendBatch(List<Bet> bets) {
+        if (bets.isEmpty()) {
+            return;
+        }
         var topic = properties.getTopic().getBetSettlements();
 
-        bets.forEach(bet -> {
-            try {
-                BetSettlement settlement = betSettlementMapper.toBetSettlement(bet);
+        List<Message> messages = bets.stream()
+                .map(bet -> {
+                    try {
+                        BetSettlement settlement = betSettlementMapper.toBetSettlement(bet);
+                        var message = new Message(
+                                topic,
+                                objectMapper.writeValueAsBytes(settlement));
+                        message.setKeys(bet.getId().toString());
+                        message.setTags(EventType.SETTLEMENT.name());
+                        return message;
+                    } catch (Exception e) {
+                        throw new SettlementException("Failed to send batch", e.getMessage());
+                    }
+                })
+                .collect(Collectors.toList());
 
-                Message<BetSettlement> message = MessageBuilder
-                        .withPayload(settlement)
-                        .setHeader(KEY_TAGS, bet.getId().toString())
-                        .setHeader(VALUE_TAGS, EventType.SETTLEMENT.name())
-                        .build();
+        try {
+            rocketMQTemplate.getProducer().send(messages);
 
-                rocketMQTemplate.sendMessageInTransaction(topic, message, dbTransaction);
-
-                log.info("Sent bet settlement to RocketMQ (Transactional) - Topic: {}, BetId: {}",
-                        topic, bet.getId());
-
-            } catch (Exception e) {
-                log.error("Failed to send settlement to RocketMQ for bet {}: {}", bet.getId(), e.getMessage());
-                throw new SettlementException("Failed to send settlement", e.getCause().getMessage());
-            }
-        });
+            log.info("Sent batch of {} bet settlements to RocketMQ", bets.size());
+        } catch (Exception e) {
+            log.error("Failed to send batch of settlements to RocketMQ: {}", e.getMessage(), e);
+            throw new SettlementException("Failed to send batch", e.getMessage());
+        }
     }
 }

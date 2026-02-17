@@ -15,11 +15,15 @@ betsettlement/
 │   │   │   ├── config/
 │   │   │   │   ├── Config.java                    # General configuration
 │   │   │   │   ├── KafkaConfig.java               # Kafka consumer configuration
-│   │   │   │   └── RocketMQProperties.java        # RocketMQ properties binding
+│   │   │   │   ├── KafkaTopicsProperties.java     # Kafka topic properties
+│   │   │   │   ├── OpenApiConfig.java             # OpenAPI configuration
+│   │   │   │   ├── RocketMQProperties.java        # RocketMQ properties binding
+│   │   │   │   └── SettlementProperties.java      # Settlement settings
 │   │   │   ├── controller/
 │   │   │   │   └── EventOutcomeController.java    # REST API endpoint
 │   │   │   ├── dto/
-│   │   │   │   └── EventOutcomeRequest.java       # Request DTO with validation
+│   │   │   │   ├── EventOutcomeRequest.java       # Request DTO with validation
+│   │   │   │   └── SettlementTask.java            # Sharding bucket task DTO
 │   │   │   ├── event/
 │   │   │   │   ├── BetSettlement.java             # Settlement message record
 │   │   │   │   ├── EventOutcome.java              # Event outcome record
@@ -27,7 +31,8 @@ betsettlement/
 │   │   │   ├── exception/
 │   │   │   │   └── SettlementException.java       # Custom exception
 │   │   │   ├── listener/
-│   │   │   │   └── EventOutcomeListener.java      # Kafka consumer
+│   │   │   │   ├── EventOutcomeListener.java      # Kafka consumer (Events)
+│   │   │   │   └── SettlementTaskListener.java    # Kafka consumer (Shards)
 │   │   │   ├── mapper/
 │   │   │   │   ├── BetSettlementMapper.java       # MapStruct mapper
 │   │   │   │   └── EventOutcomeMapper.java        # MapStruct mapper
@@ -37,8 +42,7 @@ betsettlement/
 │   │   │   │   └── FailedEventOutcome.java        # Failed event tracking
 │   │   │   ├── producer/
 │   │   │   │   ├── EventOutcomeProducer.java      # Kafka producer
-│   │   │   │   ├── SettlementProducer.java        # RocketMQ producer
-│   │   │   │   └── BetSettlementTransactionListener.java # Transaction handler
+│   │   │   │   └── SettlementProducer.java        # RocketMQ producer
 │   │   │   ├── repository/
 │   │   │   │   ├── BetRepository.java             # JPA repository
 │   │   │   │   └── FailedEventOutcomeRepository.java
@@ -51,9 +55,11 @@ betsettlement/
 │   │       └── data.sql                           # Test data
 │   └── test/
 │       ├── java/com/sprotygroup/betsettlement/
-│       │   └── integration/
-│       │       ├── BaseIT.java                    # Base integration test
-│       │       └── BetSettlementIntegrationTest.java # Full integration tests
+│       │   ├── integration/
+│       │   │   ├── BaseIT.java                    # Base integration test
+│       │   │   └── BetSettlementIT.java           # Full integration tests
+│       │   └── service/
+│       │       └── BetSettlementServiceTest.java  # Unit tests
 │       └── resources/
 │           ├── application.yml                    # Test configuration
 │           ├── mock-request/                      # Test JSON payloads
